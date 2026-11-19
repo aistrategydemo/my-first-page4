@@ -1,0 +1,1882 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>宴会仕込み・発注逆算シート｜飲食店向け予約計算ツール</title>
+  <style>
+    :root {
+      --bg-canvas: #f5f6f8;
+      --bg-surface: #ffffff;
+      --bg-subtle: #f0f2f5;
+      --bg-hover: #f8fafc;
+      --border-hairline: #e2e6ec;
+      --border-strong: #cbd2dc;
+      --text-primary: #14181f;
+      --text-secondary: #4a5565;
+      --text-muted: #697586;
+      --accent-ink: #1e293b;
+      --accent-ink-hover: #0f172a;
+      --accent-primary: #b93815;
+      --accent-primary-bg: #fff5f2;
+      --status-ok: #157f3c;
+      --status-ok-bg: #f0faf3;
+      --status-warn: #a15c07;
+      --status-warn-bg: #fef9ec;
+      --status-danger: #b42318;
+      --status-danger-bg: #fef3f2;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04);
+      --transition-fast: 150ms cubic-bezier(0.16, 1, 0.3, 1);
+      --font-sans: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Meiryo", system-ui, -apple-system, sans-serif;
+      --font-mono: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    html {
+      font-size: 16px;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      margin: 0;
+      font-family: var(--font-sans);
+      background-color: var(--bg-canvas);
+      color: var(--text-primary);
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button, input, select {
+      font-family: inherit;
+      font-size: inherit;
+      color: inherit;
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+      background: none;
+      padding: 0;
+    }
+
+    :focus-visible {
+      outline: 2px solid var(--accent-primary);
+      outline-offset: 2px;
+    }
+
+    .tabular {
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Top Header: 3-zone single row */
+    .topbar {
+      background-color: var(--bg-surface);
+      border-bottom: 1px solid var(--border-hairline);
+    }
+
+    .topbar-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .brand {
+      font-size: 1.0625rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--text-primary);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .topbar-nav {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .topbar-nav a {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-decoration: none;
+      white-space: nowrap;
+      flex-shrink: 0;
+      padding: 6px 2px;
+      border-bottom: 2px solid transparent;
+      transition: color var(--transition-fast), border-color var(--transition-fast);
+    }
+
+    .topbar-nav a:hover {
+      color: var(--text-primary);
+      border-bottom-color: var(--border-strong);
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-height: 40px;
+      padding: 8px 16px;
+      border-radius: var(--radius-sm);
+      background-color: var(--accent-ink);
+      color: #ffffff;
+      font-size: 0.875rem;
+      font-weight: 600;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: background-color var(--transition-fast), transform var(--transition-fast);
+    }
+
+    .btn-primary:hover {
+      background-color: var(--accent-ink-hover);
+    }
+
+    .btn-primary:active {
+      transform: scale(0.98);
+    }
+
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border-radius: var(--radius-sm);
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-strong);
+      color: var(--text-primary);
+      font-size: 0.875rem;
+      font-weight: 500;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: background-color var(--transition-fast), border-color var(--transition-fast);
+    }
+
+    .btn-secondary:hover {
+      background-color: var(--bg-subtle);
+    }
+
+    /* Main Layout */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px 20px 64px;
+    }
+
+    .page-intro {
+      margin-bottom: 24px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 12px 24px;
+    }
+
+    .page-title {
+      margin: 0;
+      font-size: clamp(1.375rem, 2.5vw, 1.75rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.3;
+      text-wrap: balance;
+    }
+
+    .page-subtitle {
+      margin: 4px 0 0;
+      font-size: 0.9375rem;
+      color: var(--text-secondary);
+    }
+
+    .today-meta {
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .workspace-grid {
+      display: grid;
+      grid-template-columns: 380px minmax(0, 1fr);
+      gap: 24px;
+      align-items: start;
+    }
+
+    .panel {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-card);
+      padding: 24px;
+    }
+
+    .panel + .panel {
+      margin-top: 20px;
+    }
+
+    .section-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px 16px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-hairline);
+    }
+
+    .section-title {
+      margin: 0;
+      font-size: 1.0625rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .section-meta {
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+    }
+
+    /* Controls Form */
+    .control-group {
+      margin-bottom: 22px;
+    }
+
+    .control-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .control-label-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .control-label {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .control-hint {
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+    }
+
+    /* Guest count stepper & slider */
+    .guest-input-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .stepper-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-strong);
+      background-color: var(--bg-surface);
+      font-size: 1.25rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background-color var(--transition-fast);
+    }
+
+    .stepper-btn:hover {
+      background-color: var(--bg-subtle);
+    }
+
+    .stepper-btn:active {
+      background-color: var(--border-hairline);
+    }
+
+    .guest-number-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      background-color: var(--bg-surface);
+      padding: 0 12px;
+      height: 44px;
+    }
+
+    .guest-number-wrap:focus-within {
+      border-color: var(--accent-ink);
+      box-shadow: 0 0 0 2px rgba(30, 41, 59, 0.12);
+    }
+
+    .guest-number-input {
+      width: 100%;
+      border: none;
+      background: transparent;
+      font-size: 1.25rem;
+      font-weight: 700;
+      text-align: right;
+      outline: none;
+    }
+
+    .guest-unit {
+      margin-left: 6px;
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .range-slider {
+      width: 100%;
+      height: 32px;
+      margin: 0;
+      accent-color: var(--accent-primary);
+      cursor: pointer;
+    }
+
+    .preset-row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .preset-btn {
+      min-height: 38px;
+      padding: 6px 4px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-hairline);
+      background-color: var(--bg-subtle);
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      transition: all var(--transition-fast);
+    }
+
+    .preset-btn:hover {
+      border-color: var(--border-strong);
+      color: var(--text-primary);
+    }
+
+    .preset-btn.is-active {
+      background-color: var(--accent-ink);
+      border-color: var(--accent-ink);
+      color: #ffffff;
+    }
+
+    /* Date & Time row */
+    .datetime-row {
+      display: grid;
+      grid-template-columns: 1fr 112px;
+      gap: 8px;
+    }
+
+    .field-input {
+      width: 100%;
+      min-height: 44px;
+      padding: 8px 12px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      background-color: var(--bg-surface);
+      font-size: 0.9375rem;
+      color: var(--text-primary);
+    }
+
+    .date-presets {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    /* Course Selection List */
+    .course-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .course-option {
+      width: 100%;
+      text-align: left;
+      padding: 12px 14px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-hairline);
+      background-color: var(--bg-surface);
+      transition: border-color var(--transition-fast), background-color var(--transition-fast);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-height: 44px;
+    }
+
+    .course-option:hover {
+      border-color: var(--border-strong);
+      background-color: var(--bg-hover);
+    }
+
+    .course-option.is-active {
+      border-color: var(--accent-primary);
+      background-color: var(--accent-primary-bg);
+    }
+
+    .course-option-top {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .course-name {
+      font-size: 0.9375rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .course-price {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--accent-primary);
+      white-space: nowrap;
+    }
+
+    .course-desc {
+      font-size: 0.8125rem;
+      color: var(--text-secondary);
+      line-height: 1.45;
+    }
+
+    /* Segmented button group */
+    .segmented-group {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+      padding: 4px;
+      background-color: var(--bg-subtle);
+      border-radius: var(--radius-sm);
+    }
+
+    .segmented-btn {
+      min-height: 38px;
+      padding: 6px 8px;
+      border-radius: 4px;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      transition: all var(--transition-fast);
+    }
+
+    .segmented-btn.is-active {
+      background-color: var(--bg-surface);
+      color: var(--text-primary);
+      font-weight: 600;
+      box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
+    }
+
+    /* Toggle checkbox row */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 0 0;
+      min-height: 44px;
+      cursor: pointer;
+    }
+
+    .toggle-row input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      accent-color: var(--accent-ink);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    /* Summary KPI Strip */
+    .kpi-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .kpi-card {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+    }
+
+    .kpi-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .kpi-value {
+      font-size: 1.375rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.25;
+    }
+
+    .kpi-value.is-urgent {
+      color: var(--status-danger);
+    }
+
+    .kpi-value.is-warn {
+      color: var(--status-warn);
+    }
+
+    .kpi-sub {
+      margin-top: 4px;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    /* Deadlines List */
+    .deadline-list {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .deadline-row {
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: start;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border-hairline);
+    }
+
+    .deadline-row:first-child {
+      padding-top: 4px;
+    }
+
+    .deadline-row:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .deadline-row.is-done {
+      opacity: 0.62;
+    }
+
+    .deadline-row.is-done .deadline-supplier {
+      text-decoration: line-through;
+    }
+
+    .check-tap {
+      width: 44px;
+      height: 44px;
+      margin: -8px 0 -8px -8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .check-tap input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      accent-color: var(--accent-ink);
+      cursor: pointer;
+    }
+
+    .deadline-supplier {
+      font-size: 0.9375rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .deadline-items {
+      margin-top: 2px;
+      font-size: 0.8125rem;
+      color: var(--text-secondary);
+    }
+
+    .deadline-note {
+      margin-top: 4px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .deadline-right {
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .deadline-date {
+      font-size: 0.9375rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .deadline-status {
+      margin-top: 3px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .status-ok {
+      color: var(--status-ok);
+      background-color: var(--status-ok-bg);
+    }
+
+    .status-warn {
+      color: var(--status-warn);
+      background-color: var(--status-warn-bg);
+    }
+
+    .status-danger {
+      color: var(--status-danger);
+      background-color: var(--status-danger-bg);
+    }
+
+    .status-done {
+      color: var(--text-secondary);
+      background-color: var(--bg-subtle);
+    }
+
+    /* Filter & Search Bar */
+    .filter-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .category-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      padding: 4px;
+      background-color: var(--bg-subtle);
+      border-radius: var(--radius-sm);
+    }
+
+    .tab-btn {
+      min-height: 36px;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      transition: all var(--transition-fast);
+    }
+
+    .tab-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .tab-btn.is-active {
+      background-color: var(--bg-surface);
+      color: var(--text-primary);
+      font-weight: 600;
+      box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
+    }
+
+    .search-input {
+      min-height: 40px;
+      width: 220px;
+      padding: 6px 12px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      font-size: 0.875rem;
+      background-color: var(--bg-surface);
+    }
+
+    /* Ingredient Table (Desktop) & Card List (Mobile) */
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    .prep-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+
+    .prep-table th {
+      text-align: left;
+      padding: 10px 8px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-strong);
+      white-space: nowrap;
+    }
+
+    .prep-table th.num,
+    .prep-table td.num {
+      text-align: right;
+    }
+
+    .prep-table td {
+      padding: 12px 8px;
+      border-bottom: 1px solid var(--border-hairline);
+      vertical-align: top;
+    }
+
+    .prep-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .prep-table tr.is-done td {
+      opacity: 0.55;
+    }
+
+    .prep-table tr.is-done .ing-name {
+      text-decoration: line-through;
+    }
+
+    .ing-name {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .ing-meta {
+      margin-top: 2px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .qty-order {
+      font-size: 0.9375rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      white-space: nowrap;
+    }
+
+    .qty-net {
+      margin-top: 2px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .prep-timing {
+      font-size: 0.8125rem;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    /* Beverage & Supplies Strip */
+    .supplies-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .supply-item {
+      padding: 12px 14px;
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .supply-label {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+    }
+
+    .supply-value {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      white-space: nowrap;
+    }
+
+    /* Empty state */
+    .empty-state {
+      padding: 36px 16px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+
+    .empty-state button {
+      margin-top: 10px;
+    }
+
+    /* Toast feedback */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background-color: var(--accent-ink);
+      color: #ffffff;
+      padding: 10px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 0.875rem;
+      font-weight: 500;
+      opacity: 0;
+      transform: translateY(8px);
+      pointer-events: none;
+      transition: opacity var(--transition-fast), transform var(--transition-fast);
+      z-index: 50;
+    }
+
+    .toast.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Mobile & Tablet responsiveness */
+    @media (max-width: 980px) {
+      .workspace-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .kpi-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 640px) {
+      .topbar-nav {
+        display: none;
+      }
+
+      .topbar-inner {
+        padding: 0 16px;
+      }
+
+      .container {
+        padding: 16px 14px 48px;
+      }
+
+      .panel {
+        padding: 16px;
+      }
+
+      .search-input {
+        width: 100%;
+      }
+
+      .supplies-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .deadline-row {
+        grid-template-columns: 36px minmax(0, 1fr);
+      }
+
+      .deadline-right {
+        grid-column: 2;
+        text-align: left;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 2px;
+      }
+
+      /* Responsive stacked rows on small screens */
+      .prep-table thead {
+        display: none;
+      }
+
+      .prep-table, .prep-table tbody, .prep-table tr, .prep-table td {
+        display: block;
+        width: 100%;
+      }
+
+      .prep-table tr {
+        padding: 12px 0;
+        border-bottom: 1px solid var(--border-hairline);
+        display: grid;
+        grid-template-columns: 36px minmax(0, 1fr) auto;
+        grid-template-areas:
+          "check name qty"
+          "check timing qty";
+        gap: 2px 8px;
+        align-items: start;
+      }
+
+      .prep-table tr:last-child {
+        border-bottom: none;
+      }
+
+      .prep-table td {
+        padding: 0;
+        border: none;
+      }
+
+      .prep-table td.col-check {
+        grid-area: check;
+      }
+
+      .prep-table td.col-name {
+        grid-area: name;
+      }
+
+      .prep-table td.col-timing {
+        grid-area: timing;
+      }
+
+      .prep-table td.col-qty {
+        grid-area: qty;
+        text-align: right;
+      }
+
+      .prep-table td.col-net {
+        display: none;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    @media print {
+      body {
+        background: #ffffff;
+      }
+      .topbar-actions, .filter-toolbar, .toast, #controls-panel {
+        display: none !important;
+      }
+      .workspace-grid {
+        display: block;
+      }
+      .panel {
+        box-shadow: none;
+        border: 1px solid #cbd2dc;
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a href="#top" class="brand" style="text-decoration:none;">宴会仕込み・発注台帳</a>
+      <nav class="topbar-nav" aria-label="ページ内移動">
+        <a href="#sec-controls">予約条件</a>
+        <a href="#sec-deadlines">発注締め切り</a>
+        <a href="#sec-prep">仕込み量</a>
+        <a href="#sec-supplies">飲料・備品</a>
+      </nav>
+      <div class="topbar-actions">
+        <button type="button" class="btn-secondary" id="btn-print">印刷</button>
+        <button type="button" class="btn-primary" id="btn-copy">発注メモをコピー</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container" id="top">
+    <div class="page-intro">
+      <div>
+        <h1 class="page-title">宴会予約の仕込み量・発注締め切り計算</h1>
+        <p class="page-subtitle">人数とコースを選ぶだけで、食材の仕入れ目安と卸への最終発注期限をその場で逆算します。</p>
+      </div>
+      <div class="today-meta tabular" id="today-display"></div>
+    </div>
+
+    <div class="workspace-grid">
+      <!-- Left: Controls -->
+      <aside id="controls-panel">
+        <section class="panel" id="sec-controls" aria-labelledby="heading-controls">
+          <div class="section-header">
+            <h2 class="section-title" id="heading-controls">1. 予約条件を入力</h2>
+            <button type="button" class="control-hint" id="btn-reset-checks" style="text-decoration:underline;">チェックを全解除</button>
+          </div>
+
+          <!-- Date & Time -->
+          <div class="control-group">
+            <div class="control-label-row">
+              <label class="control-label" for="input-date">宴会の開催日時</label>
+              <span class="control-hint tabular" id="days-until-label"></span>
+            </div>
+            <div class="datetime-row">
+              <input type="date" id="input-date" class="field-input tabular">
+              <select id="input-time" class="field-input tabular" aria-label="開始時刻">
+                <option value="17:30">17:30</option>
+                <option value="18:00">18:00</option>
+                <option value="18:30" selected>18:30</option>
+                <option value="19:00">19:00</option>
+                <option value="19:30">19:30</option>
+                <option value="20:00">20:00</option>
+              </select>
+            </div>
+            <div class="date-presets" aria-label="日程クイック選択">
+              <button type="button" class="preset-btn" data-add-days="2">明後日</button>
+              <button type="button" class="preset-btn" data-add-days="4">4日後</button>
+              <button type="button" class="preset-btn" data-add-days="7">1週間後</button>
+              <button type="button" class="preset-btn" data-add-days="14">2週間後</button>
+            </div>
+            <label class="toggle-row">
+              <span class="control-hint" style="color:var(--text-secondary);">卸・市場の日曜休市を考慮して前倒し</span>
+              <input type="checkbox" id="toggle-holiday" checked>
+            </label>
+          </div>
+
+          <!-- Guest Count -->
+          <div class="control-group">
+            <div class="control-label-row">
+              <label class="control-label" for="input-guests">予約人数</label>
+              <span class="control-hint">4〜60名対応</span>
+            </div>
+            <div class="guest-input-bar">
+              <button type="button" class="stepper-btn" id="btn-guest-minus" aria-label="人数を1名減らす">−</button>
+              <div class="guest-number-wrap">
+                <input type="number" id="input-guests" class="guest-number-input tabular" min="4" max="60" value="20">
+                <span class="guest-unit">名</span>
+              </div>
+              <button type="button" class="stepper-btn" id="btn-guest-plus" aria-label="人数を1名増やす">＋</button>
+            </div>
+            <input type="range" id="slider-guests" class="range-slider" min="4" max="60" step="1" value="20" aria-label="予約人数スライダー">
+            <div class="preset-row" id="guest-presets">
+              <button type="button" class="preset-btn" data-guests="8">8名</button>
+              <button type="button" class="preset-btn" data-guests="12">12名</button>
+              <button type="button" class="preset-btn is-active" data-guests="20">20名</button>
+              <button type="button" class="preset-btn" data-guests="30">30名</button>
+              <button type="button" class="preset-btn" data-guests="45">45名</button>
+            </div>
+          </div>
+
+          <!-- Course Selection -->
+          <div class="control-group">
+            <div class="control-label-row">
+              <span class="control-label">コースを選択</span>
+              <span class="control-hint">料理構成が変わります</span>
+            </div>
+            <div class="course-list" id="course-list" role="radiogroup" aria-label="コース選択"></div>
+          </div>
+
+          <!-- Portion & Buffer -->
+          <div class="control-group">
+            <div class="control-label-row">
+              <span class="control-label">客層・ボリューム調整</span>
+              <span class="control-hint" id="portion-hint">標準（100%）</span>
+            </div>
+            <div class="segmented-group" id="portion-group">
+              <button type="button" class="segmented-btn" data-portion="0.9">お酒中心 -10%</button>
+              <button type="button" class="segmented-btn is-active" data-portion="1">標準</button>
+              <button type="button" class="segmented-btn" data-portion="1.15">食事重視 +15%</button>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <div class="control-label-row">
+              <label class="control-label" for="slider-buffer">仕込み予備率（歩留まり外）</label>
+              <span class="control-hint tabular" id="buffer-label">＋10%</span>
+            </div>
+            <input type="range" id="slider-buffer" class="range-slider" min="0" max="20" step="5" value="10">
+          </div>
+        </section>
+      </aside>
+
+      <!-- Right: Results -->
+      <div>
+        <!-- Summary KPI Strip -->
+        <section class="kpi-strip" aria-label="予約サマリー">
+          <div class="kpi-card">
+            <div class="kpi-label">想定売上（料理のみ）</div>
+            <div class="kpi-value tabular" id="kpi-revenue">¥90,000</div>
+            <div class="kpi-sub tabular" id="kpi-revenue-sub">20名 × ¥4,500</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">直近の発注締め切り</div>
+            <div class="kpi-value tabular" id="kpi-next-deadline">-</div>
+            <div class="kpi-sub" id="kpi-next-supplier">-</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">発注完了状況</div>
+            <div class="kpi-value tabular" id="kpi-order-progress">0 / 4</div>
+            <div class="kpi-sub">チェックで進捗管理</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">仕込み品目数</div>
+            <div class="kpi-value tabular" id="kpi-prep-count">0品目</div>
+            <div class="kpi-sub tabular" id="kpi-prep-done">完了 0品目</div>
+          </div>
+        </section>
+
+        <!-- Deadlines -->
+        <section class="panel" id="sec-deadlines" aria-labelledby="heading-deadlines">
+          <div class="section-header">
+            <h2 class="section-title" id="heading-deadlines">2. 卸・業者への発注締め切り</h2>
+            <span class="section-meta" id="deadline-summary-meta">開催日から逆算</span>
+          </div>
+          <div class="deadline-list" id="deadline-list"></div>
+        </section>
+
+        <!-- Ingredients & Prep -->
+        <section class="panel" id="sec-prep" aria-labelledby="heading-prep">
+          <div class="section-header">
+            <h2 class="section-title" id="heading-prep">3. 食材ごとの仕込み量・発注目安</h2>
+            <span class="section-meta tabular" id="prep-formula-meta">歩留まり考慮 · 予備＋10%</span>
+          </div>
+
+          <div class="filter-toolbar">
+            <div class="category-tabs" id="category-tabs" role="tablist" aria-label="食材カテゴリ絞り込み"></div>
+            <input type="search" id="input-search" class="search-input" placeholder="食材名・仕込み工程で検索" aria-label="食材を検索">
+          </div>
+
+          <div class="table-wrap">
+            <table class="prep-table">
+              <thead>
+                <tr>
+                  <th style="width:40px;">済</th>
+                  <th>食材・仕込み工程</th>
+                  <th>仕込み時期</th>
+                  <th class="num">仕込み実量（盛付）</th>
+                  <th class="num">卸への発注目安</th>
+                </tr>
+              </thead>
+              <tbody id="prep-tbody"></tbody>
+            </table>
+          </div>
+          <div class="empty-state" id="prep-empty" hidden>
+            該当する食材が見つかりませんでした。
+            <div>
+              <button type="button" class="btn-secondary" id="btn-clear-filter">絞り込みを解除</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Drinks & Supplies -->
+        <section class="panel" id="sec-supplies" aria-labelledby="heading-supplies">
+          <div class="section-header">
+            <h2 class="section-title" id="heading-supplies">4. ドリンク・備品・氷の目安（飲み放題想定）</h2>
+            <span class="section-meta">平均1人あたり4杯で試算</span>
+          </div>
+          <div class="supplies-grid" id="supplies-grid"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      // --- Domain Data: Courses, Suppliers, Ingredients ---
+      const SUPPLIERS = {
+        fish: {
+          id: 'fish',
+          name: '鮮魚仲卸（魚市場）',
+          leadDays: 3,
+          cutoffHour: '15:00',
+          note: '活締め・特注サイズは市場休市前日の午前推奨'
+        },
+        meat: {
+          id: 'meat',
+          name: '精肉卸（ブロック・カット）',
+          leadDays: 4,
+          cutoffHour: '14:00',
+          note: '和牛や厚切り指定は熟成・加工のため4日前締切'
+        },
+        veg: {
+          id: 'veg',
+          name: '青果・八百屋',
+          leadDays: 2,
+          cutoffHour: '17:00',
+          note: 'あしらい・葉物・根菜の箱買い発注'
+        },
+        dry: {
+          id: 'dry',
+          name: '酒販・業務用乾物・豆腐店',
+          leadDays: 2,
+          cutoffHour: '16:00',
+          note: '生ビール樽・割り材・油揚げ・生麺など'
+        }
+      };
+
+      const COURSES = [
+        {
+          id: 'teiban',
+          name: '季節の銘々コース（全7品）',
+          price: 4500,
+          desc: 'お造り3種・焼き魚・若鶏唐揚げ・出し巻き・炊き合わせ・茶そば',
+          ingredients: [
+            { id: 'tai', name: '真鯛（お造り用）', category: '鮮魚・海鮮', supplier: 'fish', perPerson: 55, unit: 'g', yieldRate: 0.55, prepNote: '三枚おろし・皮霜造り（柵取なら歩留85%）', timing: '前日柵取 / 当日引き', orderUnit: 'kg' },
+            { id: 'maguro', name: '本鮪赤身（柵）', category: '鮮魚・海鮮', supplier: 'fish', perPerson: 45, unit: 'g', yieldRate: 0.9, prepNote: 'スジ取り・平造り', timing: '当日午後カット', orderUnit: 'kg' },
+            { id: 'sawara', name: '鰆切り身（西京焼き用）', category: '鮮魚・海鮮', supplier: 'fish', perPerson: 70, unit: 'g', yieldRate: 0.85, prepNote: '70gポーション・西京味噌漬け', timing: '2日前から漬け込み', orderUnit: 'kg' },
+            { id: 'torimomo', name: '若鶏もも肉（唐揚げ用）', category: '精肉', supplier: 'meat', perPerson: 95, unit: 'g', yieldRate: 0.92, prepNote: '余分な脂除去・35gカット・醤油生姜下味', timing: '前日下味漬け', orderUnit: 'kg' },
+            { id: 'daikon', name: '大根（つま・おろし・煮物）', category: '青果・野菜', supplier: 'veg', perPerson: 90, unit: 'g', yieldRate: 0.78, prepNote: '桂剥きつま・面取り含め煮', timing: '前日仕込み', orderUnit: 'kg' },
+            { id: 'oba', name: '大葉（お造り・薬味）', category: '青果・野菜', supplier: 'veg', perPerson: 2, unit: '枚', yieldRate: 0.95, prepNote: '軸切り・水洗い・キッチンペーパー保管', timing: '当日午前', orderUnit: '束10枚' },
+            { id: 'tamago', name: '鶏卵（出し巻き用）', category: '調味料・乾物', supplier: 'dry', perPerson: 1.5, unit: '個', yieldRate: 1, prepNote: '1本あたり6個立て換算', timing: '当日焼成', orderUnit: 'パック10個' },
+            { id: 'dashi', name: '一番出汁（昆布・鰹節）', category: '調味料・乾物', supplier: 'dry', perPerson: 180, unit: 'ml', yieldRate: 0.9, prepNote: '煮物・出し巻き・つゆ兼用（昆布1%・鰹3%）', timing: '当日朝引き', orderUnit: 'L' },
+            { id: 'soba', name: '茶そば（〆用・乾麺）', category: '調味料・乾物', supplier: 'dry', perPerson: 60, unit: 'g', yieldRate: 1, prepNote: '茹で上げ後1人前約140g目安', timing: '提供直前茹で', orderUnit: '袋200g' }
+          ]
+        },
+        {
+          id: 'tokusen',
+          name: '厳選お肉と地魚コース（全8品）',
+          price: 6000,
+          desc: 'お造り5種・黒毛和牛ロースト・銀だら西京・天ぷら・鯛めし',
+          ingredients: [
+            { id: 't_tai', name: '天然真鯛（姿造り・鯛めし兼用）', category: '鮮魚・海鮮', supplier: 'fish', perPerson: 85, unit: 'g', yieldRate: 0.52, prepNote: '身は刺身・アラは鯛めし出汁とほぐし身に使用', timing: '前日下処理', orderUnit: 'kg' },
+            { id: 't_chutoro', name: '本鮪中トロ（柵）', category: '鮮魚・海鮮', supplier: 'fish', perPerson: 50, unit: 'g', yieldRate: 0.92, prepNote: '厚め平造り', timing: '当日午後カット', orderUnit: 'kg' },
+            { id: 't_ebi', name: '車海老または天使の海老', category: '鮮魚・海鮮', supplier: 'fish', perPerson: 1.5, unit: '尾', yieldRate: 1, prepNote: '刺身・天ぷら兼用（背ワタ取り・腹切れ目）', timing: '当日午前下処理', orderUnit: '尾' },
+            { id: 't_gindara', name: '銀だら切り身', category: '鮮魚・海鮮', supplier: 'fish', perPerson: 75, unit: 'g', yieldRate: 0.88, prepNote: '振り塩後、西京床へ漬け込み', timing: '2日前漬け込み', orderUnit: 'kg' },
+            { id: 't_wagyu', name: '黒毛和牛イチボ（ブロック）', category: '精肉', supplier: 'meat', perPerson: 90, unit: 'g', yieldRate: 0.82, prepNote: 'スジ・脂掃除後に低温調理または炭火ロースト', timing: '前日仕込み', orderUnit: 'kg' },
+            { id: 't_nasu', name: '茄子・蓮根・ししとう（天ぷら）', category: '青果・野菜', supplier: 'veg', perPerson: 110, unit: 'g', yieldRate: 0.85, prepNote: '蓮根は酢水、茄子は隠し包丁', timing: '当日午後カット', orderUnit: 'kg' },
+            { id: 't_kome', name: '特選米（鯛めし用）', category: '調味料・乾物', supplier: 'dry', perPerson: 75, unit: 'g', yieldRate: 1, prepNote: '0.5合/人目安・事前浸水30分', timing: '当日夕方浸水', orderUnit: 'kg' },
+            { id: 't_dashi', name: '特濃合わせ出汁', category: '調味料・乾物', supplier: 'dry', perPerson: 220, unit: 'ml', yieldRate: 0.9, prepNote: '鯛めし・天つゆ・椀物兼用', timing: '当日朝引き', orderUnit: 'L' }
+          ]
+        },
+        {
+          id: 'ozara',
+          name: '大皿シェア宴会コース（全6品）',
+          price: 3800,
+          desc: '鮮魚カルパッチョ・合鴨サラダ・名物唐揚げ・出汁巻き・焼うどん',
+          ingredients: [
+            { id: 'o_salmon', name: 'サーモンまたは寒ブリ（柵）', category: '鮮魚・海鮮', supplier: 'fish', perPerson: 60, unit: 'g', yieldRate: 0.92, prepNote: '薄造り・大皿盛りカルパッチョ用', timing: '当日午後スライス', orderUnit: 'kg' },
+            { id: 'o_torimomo', name: '若鶏もも肉（名物唐揚げ）', category: '精肉', supplier: 'meat', perPerson: 130, unit: 'g', yieldRate: 0.92, prepNote: '大ぶりカット・ニンニク醤油ダレ揉み込み', timing: '前日下味漬け', orderUnit: 'kg' },
+            { id: 'o_kamo', name: '合鴨ロース燻製（サラダ用）', category: '精肉', supplier: 'meat', perPerson: 35, unit: 'g', yieldRate: 0.95, prepNote: '5mmスライス・盛り付け直前まで冷蔵', timing: '当日午前スライス', orderUnit: 'kg' },
+            { id: 'o_greens', name: 'サニーレタス・水菜・ベビーリーフ', category: '青果・野菜', supplier: 'veg', perPerson: 65, unit: 'g', yieldRate: 0.82, prepNote: 'ちぎり・氷水締め・スピナー水切り', timing: '当日夕方水切り', orderUnit: 'kg' },
+            { id: 'o_kyabetsu', name: 'キャベツ（添え・焼うどん）', category: '青果・野菜', supplier: 'veg', perPerson: 80, unit: 'g', yieldRate: 0.85, prepNote: 'ざく切り・芯薄切り', timing: '当日午前カット', orderUnit: '玉1kg' },
+            { id: 'o_buta', name: '豚バラ薄切り（焼うどん用）', category: '精肉', supplier: 'meat', perPerson: 40, unit: 'g', yieldRate: 1, prepNote: '4cm幅カット', timing: '当日午前', orderUnit: 'kg' },
+            { id: 'o_udon', name: '冷凍または生うどん', category: '調味料・乾物', supplier: 'dry', perPerson: 150, unit: 'g', yieldRate: 1, prepNote: '1玉200gなら0.75玉/人計算', timing: '提供直前加熱', orderUnit: '玉200g' }
+          ]
+        },
+        {
+          id: 'nabe',
+          name: '特製鍋と旬菜コース（全7品）',
+          price: 5000,
+          desc: '鮮魚2種刺・鶏つみれ＆豚バラ特製鍋・野菜盛り・〆雑炊セット',
+          ingredients: [
+            { id: 'n_sashimi', name: '旬の刺身盛り2種（柵）', category: '鮮魚・海鮮', supplier: 'fish', perPerson: 70, unit: 'g', yieldRate: 0.9, prepNote: 'カンパチ・サーモン等', timing: '当日午後カット', orderUnit: 'kg' },
+            { id: 'n_butabara', name: '国産豚バラ肉（鍋用スライス）', category: '精肉', supplier: 'meat', perPerson: 80, unit: 'g', yieldRate: 1, prepNote: '食べやすい長さカット・小分けバット盛り', timing: '当日午後盛り', orderUnit: 'kg' },
+            { id: 'n_tsukune', name: '鶏つくね種（鶏ひき肉＋軟骨）', category: '精肉', supplier: 'meat', perPerson: 70, unit: 'g', yieldRate: 0.96, prepNote: '長ネギ・生姜・卵で練り上げ', timing: '前日練り・当日成形', orderUnit: 'kg' },
+            { id: 'n_hakusai', name: '白菜（鍋用）', category: '青果・野菜', supplier: 'veg', perPerson: 160, unit: 'g', yieldRate: 0.85, prepNote: '芯はそぎ切り・葉はざく切り', timing: '当日午前カット', orderUnit: 'kg' },
+            { id: 'n_negi', name: '長ネギ・えのき・しいたけ', category: '青果・野菜', supplier: 'veg', perPerson: 95, unit: 'g', yieldRate: 0.86, prepNote: '斜め切り・石づき除去', timing: '当日午前カット', orderUnit: 'kg' },
+            { id: 'n_tofu', name: '木綿豆腐・油揚げ', category: '調味料・乾物', supplier: 'dry', perPerson: 80, unit: 'g', yieldRate: 1, prepNote: '1丁300g目安で6〜8等分', timing: '当日午前カット', orderUnit: '丁300g' },
+            { id: 'n_dashi', name: '鍋用特製割り出汁', category: '調味料・乾物', supplier: 'dry', perPerson: 350, unit: 'ml', yieldRate: 0.95, prepNote: '継ぎ足し分含む', timing: '当日朝仕込み', orderUnit: 'L' },
+            { id: 'n_zosui', name: '雑炊用白米・溶き卵', category: '調味料・乾物', supplier: 'dry', perPerson: 90, unit: 'g', yieldRate: 1, prepNote: '洗い飯にしておくと粘りが出にくい', timing: '当日夕方準備', orderUnit: 'kg' }
+          ]
+        }
+      ];
+
+      // --- State ---
+      const STORAGE_KEY = 'enkai_prep_checks_v1';
+      const today = startOfDay(new Date());
+
+      const state = {
+        eventDateStr: formatDateInput(addDays(today, 4)),
+        eventTime: '18:30',
+        considerHoliday: true,
+        guests: 20,
+        courseId: 'teiban',
+        portionFactor: 1,
+        bufferPct: 10,
+        activeCategory: 'すべて',
+        searchQuery: '',
+        orderedSuppliers: {},
+        preppedIngredients: {}
+      };
+
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        if (saved.orderedSuppliers) state.orderedSuppliers = saved.orderedSuppliers;
+        if (saved.preppedIngredients) state.preppedIngredients = saved.preppedIngredients;
+      } catch (e) {
+        // ignore storage errors
+      }
+
+      function saveChecks() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            orderedSuppliers: state.orderedSuppliers,
+            preppedIngredients: state.preppedIngredients
+          }));
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      // --- Date Helpers ---
+      function startOfDay(d) {
+        return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      }
+
+      function addDays(d, days) {
+        const copy = new Date(d.getTime());
+        copy.setDate(copy.getDate() + days);
+        return copy;
+      }
+
+      function formatDateInput(d) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      }
+
+      function parseDateInput(str) {
+        const parts = (str || '').split('-').map(Number);
+        if (parts.length !== 3 || parts.some(isNaN)) return addDays(today, 4);
+        return new Date(parts[0], parts[1] - 1, parts[2]);
+      }
+
+      function formatJPDate(d) {
+        const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+        return `${d.getMonth() + 1}月${d.getDate()}日(${weekdays[d.getDay()]})`;
+      }
+
+      function diffDays(fromDate, toDate) {
+        const ms = startOfDay(toDate).getTime() - startOfDay(fromDate).getTime();
+        return Math.round(ms / (1000 * 60 * 60 * 24));
+      }
+
+      function computeDeadline(eventDate, supplier, considerHoliday) {
+        let deadline = addDays(eventDate, -supplier.leadDays);
+        let shifted = false;
+        if (considerHoliday && deadline.getDay() === 0) {
+          deadline = addDays(deadline, -1);
+          shifted = true;
+        }
+        return { date: deadline, shifted };
+      }
+
+      // --- Quantity Formatting ---
+      function calcQuantities(ing) {
+        const multiplier = state.guests * state.portionFactor * (1 + state.bufferPct / 100);
+        const netTotal = ing.perPerson * multiplier;
+        const grossTotal = netTotal / ing.yieldRate;
+
+        const netText = formatNetQuantity(netTotal, ing.unit);
+        const orderText = formatOrderQuantity(grossTotal, ing.unit, ing.orderUnit);
+        return { netText, orderText };
+      }
+
+      function formatNetQuantity(val, unit) {
+        if (unit === 'g') {
+          if (val >= 1000) return `${(Math.round(val / 50) * 50 / 1000).toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1')} kg`;
+          return `${Math.round(val / 10) * 10} g`;
+        }
+        if (unit === 'ml') {
+          if (val >= 1000) return `${(Math.round(val / 100) * 100 / 1000).toFixed(1)} L`;
+          return `${Math.round(val / 10) * 10} ml`;
+        }
+        return `${Math.ceil(val)} ${unit}`;
+      }
+
+      function formatOrderQuantity(grossVal, baseUnit, orderUnit) {
+        if (orderUnit === 'kg') {
+          const kg = Math.ceil((grossVal / 1000) * 10) / 10;
+          return `${kg.toFixed(1)} kg`;
+        }
+        if (orderUnit === 'L') {
+          const liters = Math.ceil((grossVal / 1000) * 2) / 2;
+          return `${liters.toFixed(1)} L`;
+        }
+        if (orderUnit === '束10枚') {
+          const bundles = Math.ceil(grossVal / 10);
+          return `${bundles} 束（${bundles * 10}枚）`;
+        }
+        if (orderUnit === 'パック10個') {
+          const packs = Math.ceil(grossVal / 10);
+          return `${packs} パック（${Math.ceil(grossVal)}個）`;
+        }
+        if (orderUnit === '袋200g') {
+          const bags = Math.ceil(grossVal / 200);
+          return `${bags} 袋（200g入）`;
+        }
+        if (orderUnit === '玉1kg') {
+          const heads = Math.ceil(grossVal / 1000);
+          return `${heads} 玉（約${heads}kg）`;
+        }
+        if (orderUnit === '玉200g') {
+          const balls = Math.ceil(grossVal / 200);
+          return `${balls} 玉`;
+        }
+        if (orderUnit === '丁300g') {
+          const blocks = Math.ceil(grossVal / 300);
+          return `${blocks} 丁`;
+        }
+        return `${Math.ceil(grossVal)} ${orderUnit}`;
+      }
+
+      // --- DOM Refs ---
+      const els = {
+        todayDisplay: document.getElementById('today-display'),
+        inputDate: document.getElementById('input-date'),
+        inputTime: document.getElementById('input-time'),
+        daysUntilLabel: document.getElementById('days-until-label'),
+        toggleHoliday: document.getElementById('toggle-holiday'),
+        inputGuests: document.getElementById('input-guests'),
+        sliderGuests: document.getElementById('slider-guests'),
+        btnGuestMinus: document.getElementById('btn-guest-minus'),
+        btnGuestPlus: document.getElementById('btn-guest-plus'),
+        guestPresets: document.getElementById('guest-presets'),
+        courseList: document.getElementById('course-list'),
+        portionGroup: document.getElementById('portion-group'),
+        portionHint: document.getElementById('portion-hint'),
+        sliderBuffer: document.getElementById('slider-buffer'),
+        bufferLabel: document.getElementById('buffer-label'),
+        kpiRevenue: document.getElementById('kpi-revenue'),
+        kpiRevenueSub: document.getElementById('kpi-revenue-sub'),
+        kpiNextDeadline: document.getElementById('kpi-next-deadline'),
+        kpiNextSupplier: document.getElementById('kpi-next-supplier'),
+        kpiOrderProgress: document.getElementById('kpi-order-progress'),
+        kpiPrepCount: document.getElementById('kpi-prep-count'),
+        kpiPrepDone: document.getElementById('kpi-prep-done'),
+        deadlineList: document.getElementById('deadline-list'),
+        deadlineSummaryMeta: document.getElementById('deadline-summary-meta'),
+        categoryTabs: document.getElementById('category-tabs'),
+        inputSearch: document.getElementById('input-search'),
+        prepFormulaMeta: document.getElementById('prep-formula-meta'),
+        prepTbody: document.getElementById('prep-tbody'),
+        prepEmpty: document.getElementById('prep-empty'),
+        btnClearFilter: document.getElementById('btn-clear-filter'),
+        suppliesGrid: document.getElementById('supplies-grid'),
+        btnCopy: document.getElementById('btn-copy'),
+        btnPrint: document.getElementById('btn-print'),
+        btnResetChecks: document.getElementById('btn-reset-checks'),
+        toast: document.getElementById('toast')
+      };
+
+      // --- Render Functions ---
+      function renderAll() {
+        const course = COURSES.find(c => c.id === state.courseId) || COURSES[0];
+        const eventDate = parseDateInput(state.eventDateStr);
+        const daysUntil = diffDays(today, eventDate);
+
+        els.todayDisplay.textContent = `本日：${formatJPDate(today)}`;
+        els.inputDate.value = state.eventDateStr;
+
+        if (daysUntil === 0) {
+          els.daysUntilLabel.textContent = '開催：本日';
+        } else if (daysUntil > 0) {
+          els.daysUntilLabel.textContent = `開催まであと ${daysUntil}日`;
+        } else {
+          els.daysUntilLabel.textContent = `${Math.abs(daysUntil)}日前の日付`;
+        }
+
+        els.inputGuests.value = state.guests;
+        els.sliderGuests.value = state.guests;
+        els.bufferLabel.textContent = state.bufferPct === 0 ? '±0%' : `＋${state.bufferPct}%`;
+        els.prepFormulaMeta.textContent = `歩留まり考慮 · 予備＋${state.bufferPct}%`;
+
+        // Guest preset active state
+        els.guestPresets.querySelectorAll('.preset-btn').forEach(btn => {
+          btn.classList.toggle('is-active', Number(btn.dataset.guests) === state.guests);
+        });
+
+        // Portion active state
+        const portionMap = { 0.9: 'お酒中心（90%）', 1: '標準（100%）', 1.15: '食事重視（115%）' };
+        els.portionHint.textContent = portionMap[state.portionFactor] || '標準（100%）';
+        els.portionGroup.querySelectorAll('.segmented-btn').forEach(btn => {
+          btn.classList.toggle('is-active', Number(btn.dataset.portion) === state.portionFactor);
+        });
+
+        // Revenue KPI
+        const revenue = state.guests * course.price;
+        els.kpiRevenue.textContent = `¥${revenue.toLocaleString('ja-JP')}`;
+        els.kpiRevenueSub.textContent = `${state.guests}名 × ¥${course.price.toLocaleString('ja-JP')}`;
+
+        renderCourses();
+        renderDeadlines(eventDate, course);
+        renderCategories(course);
+        renderIngredients(course);
+        renderSupplies();
+      }
+
+      function renderCourses() {
+        els.courseList.innerHTML = '';
+        COURSES.forEach(course => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = `course-option${course.id === state.courseId ? ' is-active' : ''}`;
+          btn.setAttribute('role', 'radio');
+          btn.setAttribute('aria-checked', String(course.id === state.courseId));
+          btn.innerHTML = `
+            <div class="course-option-top">
+              <span class="course-name">${escapeHtml(course.name)}</span>
+              <span class="course-price tabular">¥${course.price.toLocaleString('ja-JP')}</span>
+            </div>
+            <div class="course-desc">${escapeHtml(course.desc)}</div>
+          `;
+          btn.addEventListener('click', () => {
+            state.courseId = course.id;
+            state.activeCategory = 'すべて';
+            renderAll();
+          });
+          els.courseList.appendChild(btn);
+        });
+      }
+
+      function renderDeadlines(eventDate, course) {
+        // Collect used suppliers in current course, sorted by earliest deadline first
+        const usedSupplierIds = [...new Set(course.ingredients.map(i => i.supplier))];
+        if (!usedSupplierIds.includes('dry')) usedSupplierIds.push('dry');
+
+        const deadlineRows = usedSupplierIds.map(supId => {
+          const supplier = SUPPLIERS[supId];
+          const { date, shifted } = computeDeadline(eventDate, supplier, state.considerHoliday);
+          const daysLeft = diffDays(today, date);
+          const isDone = Boolean(state.orderedSuppliers[supId]);
+          const relatedItems = course.ingredients.filter(i => i.supplier === supId).map(i => i.name.split('（')[0]);
+          if (supId === 'dry' && !relatedItems.includes('酒類・割り材')) {
+            relatedItems.unshift('生ビール樽・酒類');
+          }
+          return { supplier, date, shifted, daysLeft, isDone, relatedItems };
+        }).sort((a, b) => a.date.getTime() - b.date.getTime());
+
+        els.deadlineSummaryMeta.textContent = `${formatJPDate(eventDate)} ${state.eventTime} 開始基準`;
+        els.deadlineList.innerHTML = '';
+
+        let orderedCount = 0;
+        let nextUrgent = null;
+
+        deadlineRows.forEach(row => {
+          if (row.isDone) orderedCount++;
+          else if (!nextUrgent) nextUrgent = row;
+
+          let statusClass = 'status-ok';
+          let statusLabel = `あと ${row.daysLeft}日`;
+
+          if (row.isDone) {
+            statusClass = 'status-done';
+            statusLabel = '発注済み';
+          } else if (row.daysLeft < 0) {
+            statusClass = 'status-danger';
+            statusLabel = `${Math.abs(row.daysLeft)}日超過 · 至急確認`;
+          } else if (row.daysLeft === 0) {
+            statusClass = 'status-danger';
+            statusLabel = `本日 ${row.supplier.cutoffHour} 締切`;
+          } else if (row.daysLeft === 1) {
+            statusClass = 'status-warn';
+            statusLabel = '明日締切';
+          }
+
+          const div = document.createElement('div');
+          div.className = `deadline-row${row.isDone ? ' is-done' : ''}`;
+          div.innerHTML = `
+            <label class="check-tap" aria-label="${escapeHtml(row.supplier.name)}を発注済みにする">
+              <input type="checkbox" ${row.isDone ? 'checked' : ''}>
+            </label>
+            <div>
+              <div class="deadline-supplier">${escapeHtml(row.supplier.name)}</div>
+              <div class="deadline-items">対象：${escapeHtml(row.relatedItems.join('、'))}</div>
+              <div class="deadline-note">${escapeHtml(row.supplier.note)}${row.shifted ? ' · 日曜休市のため前倒し' : ''}</div>
+            </div>
+            <div class="deadline-right">
+              <div class="deadline-date tabular">${formatJPDate(row.date)} ${row.supplier.cutoffHour}</div>
+              <span class="deadline-status ${statusClass} tabular">${statusLabel}</span>
+            </div>
+          `;
+
+          const checkbox = div.querySelector('input[type="checkbox"]');
+          checkbox.addEventListener('change', () => {
+            state.orderedSuppliers[row.supplier.id] = checkbox.checked;
+            saveChecks();
+            renderDeadlines(eventDate, course);
+          });
+
+          els.deadlineList.appendChild(div);
+        });
+
+        els.kpiOrderProgress.textContent = `${orderedCount} / ${deadlineRows.length}`;
+        if (!nextUrgent) {
+          els.kpiNextDeadline.textContent = '発注完了';
+          els.kpiNextDeadline.className = 'kpi-value tabular';
+          els.kpiNextSupplier.textContent = '全業者の発注チェック済み';
+        } else {
+          els.kpiNextDeadline.textContent = formatJPDate(nextUrgent.date);
+          els.kpiNextDeadline.className = 'kpi-value tabular' + (nextUrgent.daysLeft <= 0 ? ' is-urgent' : nextUrgent.daysLeft === 1 ? ' is-warn' : '');
+          els.kpiNextSupplier.textContent = `${nextUrgent.supplier.name.split('（')[0]} (${nextUrgent.supplier.cutoffHour}迄)`;
+        }
+      }
+
+      function renderCategories(course) {
+        const categories = ['すべて', ...new Set(course.ingredients.map(i => i.category))];
+        els.categoryTabs.innerHTML = '';
+        categories.forEach(cat => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = `tab-btn${cat === state.activeCategory ? ' is-active' : ''}`;
+          btn.setAttribute('role', 'tab');
+          btn.setAttribute('aria-selected', String(cat === state.activeCategory));
+          btn.textContent = cat;
+          btn.addEventListener('click', () => {
+            state.activeCategory = cat;
+            renderCategories(course);
+            renderIngredients(course);
+          });
+          els.categoryTabs.appendChild(btn);
+        });
+      }
+
+      function renderIngredients(course) {
+        const query = state.searchQuery.trim().toLowerCase();
+        const filtered = course.ingredients.filter(ing => {
+          const catMatch = state.activeCategory === 'すべて' || ing.category === state.activeCategory;
+          const textMatch = !query || ing.name.toLowerCase().includes(query) || ing.prepNote.toLowerCase().includes(query);
+          return catMatch && textMatch;
+        });
+
+        const totalCount = course.ingredients.length;
+        const doneCount = course.ingredients.filter(i => state.preppedIngredients[i.id]).length;
+        els.kpiPrepCount.textContent = `${totalCount}品目`;
+        els.kpiPrepDone.textContent = `仕込み完了 ${doneCount}品目`;
+
+        els.prepTbody.innerHTML = '';
+        els.prepEmpty.hidden = filtered.length > 0;
+
+        filtered.forEach(ing => {
+          const { netText, orderText } = calcQuantities(ing);
+          const isDone = Boolean(state.preppedIngredients[ing.id]);
+
+          const tr = document.createElement('tr');
+          if (isDone) tr.className = 'is-done';
+
+          tr.innerHTML = `
+            <td class="col-check">
+              <label class="check-tap" aria-label="${escapeHtml(ing.name)}の仕込み完了">
+                <input type="checkbox" ${isDone ? 'checked' : ''}>
+              </label>
+            </td>
+            <td class="col-name">
+              <div class="ing-name">${escapeHtml(ing.name)}</div>
+              <div class="ing-meta">${escapeHtml(ing.category)} · ${escapeHtml(ing.prepNote)}</div>
+            </td>
+            <td class="col-timing">
+              <div class="prep-timing">${escapeHtml(ing.timing)}</div>
+            </td>
+            <td class="num col-net">
+              <div class="tabular">${escapeHtml(netText)}</div>
+              <div class="ing-meta tabular">歩留 ${Math.round(ing.yieldRate * 100)}%</div>
+            </td>
+            <td class="num col-qty">
+              <div class="qty-order tabular">${escapeHtml(orderText)}</div>
+              <div class="qty-net tabular">可食目安 ${escapeHtml(netText)}</div>
+            </td>
+          `;
+
+          const cb = tr.querySelector('input[type="checkbox"]');
+          cb.addEventListener('change', () => {
+            state.preppedIngredients[ing.id] = cb.checked;
+            saveChecks();
+            renderIngredients(course);
+          });
+
+          els.prepTbody.appendChild(tr);
+        });
+      }
+
+      function renderSupplies() {
+        const g = state.guests;
+        const bufferMult = 1 + state.bufferPct / 100;
+        const beerCups = Math.round(g * 2.1 * bufferMult);
+        const beerLiters = Math.ceil((beerCups * 0.35) / 5) * 5; // in 5L increments
+        const kegs10L = Math.ceil((beerCups * 0.35) / 10);
+        const iceKg = Math.ceil(g * 0.45 * bufferMult);
+        const oshibori = Math.ceil(g * 1.2);
+        const plates = Math.ceil(g * 3.5);
+
+        const items = [
+          { label: '生ビール目安（10L樽換算）', value: `約 ${kegs10L} 樽（${beerLiters}L分）` },
+          { label: '氷の必要量（クラッシュ・角氷）', value: `約 ${iceKg} kg` },
+          { label: 'おしぼり・割り箸（予備2割込）', value: `${oshibori} 組` },
+          { label: '取り皿・グラス準備数', value: `各 ${plates} 枚/脚` }
+        ];
+
+        els.suppliesGrid.innerHTML = items.map(item => `
+          <div class="supply-item">
+            <span class="supply-label">${escapeHtml(item.label)}</span>
+            <span class="supply-value tabular">${escapeHtml(item.value)}</span>
+          </div>
+        `).join('');
+      }
+
+      // --- Event Bindings ---
+      function setGuests(val) {
+        const clamped = Math.max(4, Math.min(60, Math.round(Number(val) || 4)));
+        state.guests = clamped;
+        renderAll();
+      }
+
+      els.inputDate.addEventListener('change', e => {
+        if (e.target.value) {
+          state.eventDateStr = e.target.value;
+          renderAll();
+        }
+      });
+
+      els.inputTime.addEventListener('change', e => {
+        state.eventTime = e.target.value;
+        renderAll();
+      });
+
+      document.querySelectorAll('[data-add-days]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const d = addDays(today, Number(btn.dataset.addDays));
+          state.eventDateStr = formatDateInput(d);
+          renderAll();
+        });
+      });
+
+      els.toggleHoliday.addEventListener('change', e => {
+        state.considerHoliday = e.target.checked;
+        renderAll();
+      });
+
+      els.btnGuestMinus.addEventListener('click', () => setGuests(state.guests - 1));
+      els.btnGuestPlus.addEventListener('click', () => setGuests(state.guests + 1));
+      els.sliderGuests.addEventListener('input', e => setGuests(e.target.value));
+      els.inputGuests.addEventListener('change', e => setGuests(e.target.value));
+
+      els.guestPresets.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.addEventListener('click', () => setGuests(btn.dataset.guests));
+      });
+
+      els.portionGroup.querySelectorAll('.segmented-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.portionFactor = Number(btn.dataset.portion);
+          renderAll();
+        });
+      });
+
+      els.sliderBuffer.addEventListener('input', e => {
+        state.bufferPct = Number(e.target.value);
+        renderAll();
+      });
+
+      els.inputSearch.addEventListener('input', e => {
+        state.searchQuery = e.target.value;
+        const course = COURSES.find(c => c.id === state.courseId) || COURSES[0];
+        renderIngredients(course);
+      });
+
+      els.btnClearFilter.addEventListener('click', () => {
+        state.activeCategory = 'すべて';
+        state.searchQuery = '';
+        els.inputSearch.value = '';
+        renderAll();
+      });
+
+      els.btnResetChecks.addEventListener('click', () => {
+        state.orderedSuppliers = {};
+        state.preppedIngredients = {};
+        saveChecks();
+        renderAll();
+        showToast('発注・仕込みチェックを解除しました');
+      });
+
+      els.btnPrint.addEventListener('click', () => {
+        window.print();
+      });
+
+      els.btnCopy.addEventListener('click', () => {
+        const course = COURSES.find(c => c.id === state.courseId) || COURSES[0];
+        const eventDate = parseDateInput(state.eventDateStr);
+        const lines = [
+          `【宴会仕込み・発注メモ】`,
+          `開催日時：${formatJPDate(eventDate)} ${state.eventTime}〜`,
+          `人数：${state.guests}名（予備率 +${state.bufferPct}%）`,
+          `コース：${course.name}`,
+          ``,
+          `■ 発注締め切り`
+        ];
+
+        const usedSupplierIds = [...new Set(course.ingredients.map(i => i.supplier))];
+        if (!usedSupplierIds.includes('dry')) usedSupplierIds.push('dry');
+
+        usedSupplierIds.forEach(supId => {
+          const sup = SUPPLIERS[supId];
+          const { date } = computeDeadline(eventDate, sup, state.considerHoliday);
+          const mark = state.orderedSuppliers[supId] ? '済' : '未';
+          lines.push(`[${mark}] ${sup.name}：${formatJPDate(date)} ${sup.cutoffHour}まで`);
+        });
+
+        lines.push(``, `■ 食材発注・仕込み目安`);
+        course.ingredients.forEach(ing => {
+          const { netText, orderText } = calcQuantities(ing);
+          lines.push(`・${ing.name}：発注目安 ${orderText}（盛付 ${netText}）`);
+        });
+
+        const text = lines.join('\n');
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(() => {
+            showToast('発注・仕込みメモをクリップボードにコピーしました');
+          }).catch(() => {
+            fallbackCopy(text);
+          });
+        } else {
+          fallbackCopy(text);
+        }
+      });
+
+      function fallbackCopy(text) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+          document.execCommand('copy');
+          showToast('発注・仕込みメモをコピーしました');
+        } catch (e) {
+          showToast('コピーに失敗しました');
+        }
+        document.body.removeChild(ta);
+      }
+
+      let toastTimer = null;
+      function showToast(msg) {
+        els.toast.textContent = msg;
+        els.toast.classList.add('is-visible');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+          els.toast.classList.remove('is-visible');
+        }, 2400);
+      }
+
+      function escapeHtml(str) {
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      // Initialize
+      renderAll();
+    })();
+  </script>
+</body>
+</html>
